@@ -2,7 +2,7 @@ from django.shortcuts import render,redirect
 from django.http import HttpResponse
 # Create your views here.
 from django.db.models import Q
-from .models import Rooms,Topic
+from .models import Rooms,Topic,Message
 from .forms import RoomForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,login, logout
@@ -92,11 +92,30 @@ def home(request,*args,**kwargs):
 
 def room(request,pk):
     rooms = Rooms.objects.get(id = pk)
-    
-    context = {'rooms':rooms}
+    room_messages = rooms.message_set.all().order_by('-created') 
+    # So this is the relationship, we get all the messages in the room
+    # we know that room has many messages (1 to many) relationship, so we can get those messages by messages_set. 
+    participants = rooms.participants.all()
+    if request.method == 'POST':
+        message = Message.objects.create(
+            user = request.user,
+            room = rooms,
+            body = request.POST.get('body')
+        )
+        rooms.participants.add(request.user)
+        return redirect('room',pk=rooms.id)
+
+    context = {'rooms':rooms,
+               'room_messages':room_messages,
+               'participants':participants
+               }
+
     return render(request,'base/room.html',context) 
 
-@login_required(login_url='login')
+
+
+
+@login_required(login_url='login') 
 def createRoom(request):
     form = RoomForm()
     if request.method == 'POST':
@@ -140,4 +159,17 @@ def delete(request,pk):
         room.delete()
         return redirect('home')
     return render(request,'base/delete.html',{'obj':room})
+
+@login_required(login_url='login')
+def deleteMessage(request,pk):
+    message = Message.objects.get(id=pk)
+
+    if request.user != message.user:
+        return HttpResponse('Your are not allowed here!')
+
+
+    if request.method == 'POST':
+        message.delete()
+        return redirect('home')
+    return render(request,'base/delete.html',{'obj':message})
 
