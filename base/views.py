@@ -86,13 +86,15 @@ def home(request,*args,**kwargs):
 
     topic = Topic.objects.all()
     room_count = rooms.count()
+    room_messages = Message.objects.filter(Q(room__topic__name__icontains=q)) # filter out messages from that perticular room only...
 
-    context = {'rooms':rooms,'topics':topic,'room_count':room_count}
+    context = {'rooms':rooms,'topics':topic,'room_count':room_count,
+               'room_messages':room_messages}
     return render(request,'base/home.html',context)
 
 def room(request,pk):
     rooms = Rooms.objects.get(id = pk)
-    room_messages = rooms.message_set.all().order_by('-created') 
+    room_messages = rooms.message_set.all() #.order_by('-created') used to order in the most resent one.  
     # So this is the relationship, we get all the messages in the room
     # we know that room has many messages (1 to many) relationship, so we can get those messages by messages_set. 
     participants = rooms.participants.all()
@@ -112,7 +114,15 @@ def room(request,pk):
 
     return render(request,'base/room.html',context) 
 
-
+def userProfile(request,pk):
+    user = User.objects.get(id=pk)
+    rooms = user.rooms_set.all() # we can get all the children of a specific model by using children_set.all() method,
+    # and in this case room_set.all() to get all the rooms of specif user. 
+    room_message = user.message_set.all() # will get all the messages user ever did. 
+    topics= Topic.objects.all() # get all the topics. 
+    context = {'user':user,'rooms':rooms,'room_messages':room_message,
+               'topics':topics}
+    return render(request, 'base/profile.html',context)
 
 
 @login_required(login_url='login') 
